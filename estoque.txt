@@ -1,0 +1,3 @@
+Camiseta|35
+Calça Jeans|25
+Sapato|3
