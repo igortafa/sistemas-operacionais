@@ -1,113 +1,59 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <unistd.h>
 
-#define BUFFER_SIZE 3      // Tamanho do buffer (ajuste de 1 a 5)
-#define TOTAL_ITENS 10     // Total de itens a serem produzidos/consumidos
-
-// Variáveis globais
-int buffer[BUFFER_SIZE];      // Buffer compartilhado
-int count = 0;                // Quantidade atual de itens no buffer
-int in = 0, out = 0;          // Índices para inserir e remover do buffer
-int next_item = 1;            // Próximo item a ser produzido
-
-pthread_mutex_t mutex;        // Mutex para exclusão mútua
-pthread_cond_t cond_full;     // Variável de condição para buffer cheio
-pthread_cond_t cond_empty;    // Variável de condição para buffer vazio
-
-// Função para imprimir o estado atual do buffer
-void print_buffer() {
-    int j;
-    printf("Estado do buffer: [");
-    for (j = 0; j < count; j++) {
-        int idx = (out + j) % BUFFER_SIZE;
-        printf("%d", buffer[idx]);
-        if (j != count - 1) printf(" ");
-    }
-    printf("]\n\n");
-}
-
-// Função do produtor
-void* produtor(void* arg) {
-    int i;
-    for (i = 0; i < TOTAL_ITENS; ++i) {
-        pthread_mutex_lock(&mutex);
-        printf("[Produtor] Tentando produzir...\n");
-
-        // Espera caso o buffer esteja cheio
-        while (count == BUFFER_SIZE) {
-            printf("[Produtor] Buffer cheio, produtor bloqueado.\n");
-            pthread_cond_wait(&cond_full, &mutex);
-        }
-
-        // Produz item
-        buffer[in] = next_item++;
-        in = (in + 1) % BUFFER_SIZE;
-        count++;
-        printf("[Produtor] Item produzido. Buffer agora tem %d item(ns).\n", count);
-        print_buffer();
-
-        pthread_cond_signal(&cond_empty); // Avisa consumidor que há item
-        pthread_mutex_unlock(&mutex);
-
-        usleep(300000); // Simula tempo de produção (0,3s)
-    }
-    return NULL;
-}
-
-// Função do consumidor
-void* consumidor(void* arg) {
-    int i;
-    for (i = 0; i < TOTAL_ITENS; ++i) {
-        pthread_mutex_lock(&mutex);
-        printf("[Consumidor] Tentando consumir...\n");
-
-        // Espera caso o buffer esteja vazio
-        while (count == 0) {
-            printf("[Consumidor] Buffer vazio, consumidor bloqueado.\n");
-            pthread_cond_wait(&cond_empty, &mutex);
-        }
-
-        // Consome item
-        int item = buffer[out];
-        out = (out + 1) % BUFFER_SIZE;
-        count--;
-        printf("[Consumidor] Item consumido (%d). Buffer agora tem %d item(ns).\n", item, count);
-        print_buffer();
-
-        pthread_cond_signal(&cond_full); // Avisa produtor que há espaço
-        pthread_mutex_unlock(&mutex);
-
-        usleep(400000); // Simula tempo de consumo (0,4s)
-    }
-    return NULL;
-}
+// Definimos o tamanho do nosso "buffer"
+#define TAMANHO_BUFFER 5
 
 int main() {
-    pthread_t t_prod, t_cons;
+    // Nosso buffer, simulado por um array
+    int buffer[TAMANHO_BUFFER];
 
-    // Inicialização das variáveis de sincronização
-    pthread_mutex_init(&mutex, NULL);
-    pthread_cond_init(&cond_full, NULL);
-    pthread_cond_init(&cond_empty, NULL);
+    // Variáveis de controle do buffer
+    int in = 0;   // Índice para onde o produtor vai adicionar o próximo item
+    int out = 0;  // Índice de onde o consumidor vai pegar o próximo item
+    int contador = 0; // Quantidade de itens no buffer
 
-    printf("---- Problema do Produtor-Consumidor ----\n");
-    printf("Buffer com %d posições. Total de itens: %d\n\n", BUFFER_SIZE, TOTAL_ITENS);
+    int item_produtor = 1; // Item a ser produzido
 
-    // Cria as threads
-    pthread_create(&t_prod, NULL, produtor, NULL);
-    pthread_create(&t_cons, NULL, consumidor, NULL);
+    printf("Iniciando a simulacao do Produtor-Consumidor...\n\n");
 
-    // Aguarda as threads terminarem
-    pthread_join(t_prod, NULL);
-    pthread_join(t_cons, NULL);
+    // Simulamos um ciclo de 15 "ações" para demonstração
+    for (int i = 0; i < 15; i++) {
+        // --- ACAO DO PRODUTOR ---
+        // Se o buffer nao estiver cheio...
+        if (contador < TAMANHO_BUFFER) {
+            // Adiciona o item ao buffer
+            buffer[in] = item_produtor;
+            printf("Produtor: Item %d adicionado na posicao %d.\n", item_produtor, in);
 
-    // Libera recursos
-    pthread_mutex_destroy(&mutex);
-    pthread_cond_destroy(&cond_full);
-    pthread_cond_destroy(&cond_empty);
+            // Incrementa o indice e o contador
+            in = (in + 1) % TAMANHO_BUFFER;
+            contador++;
 
-    printf("Execução finalizada. Todos os itens foram produzidos e consumidos.\n");
+            // Incrementa o valor do proximo item a ser produzido
+            item_produtor++;
+        } else {
+            printf("Produtor: Buffer cheio! Produtor esperando...\n");
+        }
+        
+        // --- ACAO DO CONSUMIDOR ---
+        // Se o buffer nao estiver vazio...
+        if (contador > 0) {
+            // Remove o item do buffer
+            int item_consumido = buffer[out];
+            printf("Consumidor: Item %d removido da posicao %d.\n", item_consumido, out);
+
+            // Incrementa o indice e decrementa o contador
+            out = (out + 1) % TAMANHO_BUFFER;
+            contador--;
+        } else {
+            printf("Consumidor: Buffer vazio! Consumidor esperando...\n");
+        }
+
+        printf("--- Estado atual: %d de %d itens no buffer. ---\n\n", contador, TAMANHO_BUFFER);
+    }
+
+    printf("Simulacao encerrada.\n");
+
     return 0;
 }
